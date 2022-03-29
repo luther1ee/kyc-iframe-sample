@@ -84,22 +84,25 @@ function iframeOnLoad(e) {
 
 function buttonOnClick(idx) {
     const kycIframe = document.getElementById("kyc_iframe");
-    kycIframe.onload = function () {
-        let params = _.cloneDeep(KYC_PARAMS[idx]);
+    if (!kycIframe.src) {
+        kyc_iframe.src = KYC_URL;
+    }
+    let params = _.cloneDeep(KYC_PARAMS[idx]);
 
-        if (document.getElementById('userinfo_type').value === 'param') {
-            params.name = document.getElementById('userinfo_name').value;
-            params.birthday = document.getElementById('userinfo_birthday').value;
-            params.phone_number = document.getElementById('userinfo_phone_number').value;
-            params.email = document.getElementById('userinfo_email').value;
-    
-            params.customer_id = String(idx + 7);
-    
-            if (!params.name || !params.birthday || !params.phone_number || !params.email) {
-                alert('필수 정보가 입력되지 않았습니다.');
-                hideLoadingUI();
-                return;
-            }
+    if (document.getElementById('userinfo_type').value === 'param') {
+        params.name = document.getElementById('userinfo_name').value;
+        const birthday1 = document.getElementById('userinfo_birthday1').value;
+        const birthday2 = document.getElementById('userinfo_birthday2').value;
+        const birthday3 = document.getElementById('userinfo_birthday3').value;
+        params.birthday = birthday1 + "-" + birthday2 + "-" + birthday3;
+        params.phone_number = document.getElementById('userinfo_phone_number').value;
+        params.email = document.getElementById('userinfo_email').value;
+
+        params.customer_id = String(idx + 7);
+
+        if (!params.name || !birthday1 || !birthday2 || !birthday3 || !params.phone_number || !params.email) {
+            alert('필수 정보가 입력되지 않았습니다.');
+            return;
         }
     
         let encodedParams = btoa(encodeURIComponent(JSON.stringify(params)));
