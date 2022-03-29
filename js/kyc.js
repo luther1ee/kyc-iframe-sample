@@ -23,24 +23,51 @@ window.addEventListener("message", (e) => {
         const decodedData = decodeURIComponent(atob(e.data));
         console.log("decoded", decodedData);
         const json = JSON.parse(decodedData);
-        const str = JSON.stringify(json, undefined, 4);
         console.log("json", json);
 
         console.log(json.result + "처리 필요");
+
+        let json2 = _.cloneDeep(json);
+        if (json2 && json2.review_result && json2.review_result.id_card) {
+            const review_result = json2 && json2.review_result;
+
+            if (review_result.id_card) {
+                const id_card = review_result.id_card;
+                if (id_card.id_card_image) {
+                    id_card.id_card_image = id_card.id_card_image.substring(0, 20) + "...생략...";
+                }
+                if (id_card.id_card_origin) {
+                    id_card.id_card_origin = id_card.id_card_origin.substring(0, 20) + "...생략...";
+                }
+                if (id_card.id_crop_image) {
+                    id_card.id_crop_image = id_card.id_crop_image.substring(0, 20) + "...생략...";
+                }
+            }
+
+            if (review_result.face_check) {
+                const face_check = review_result.face_check;
+                if (face_check.selfie_image) {
+                    face_check.selfie_image = face_check.selfie_image.substring(0, 20) + "...생략...";
+                }
+            }
+
+        }
+
+        const str = JSON.stringify(json2, undefined, 4);
         const strHighlight = syntaxHighlight(str);
 
         if (json.result === "success") {
-            output(strHighlight);
+            updateDebugWin(strHighlight);
             updateKYCResult(strHighlight, json);
         } else if (json.result === "failed") {
-            output(strHighlight);
+            updateDebugWin(strHighlight);
             updateKYCResult(strHighlight, json);
         } else if (json.result === "complete") {
-            output(strHighlight);
+            updateDebugWin(strHighlight);
             updateKYCStatus("KYC가 완료되었습니다.");
             endKYC();
         } else if (json.result === "close") {
-            output(strHighlight);
+            updateDebugWin(strHighlight);
             updateKYCStatus("KYC가 완료되지 않았습니다.");
             endKYC();
         } else {
@@ -77,11 +104,26 @@ function buttonOnClick(idx) {
             alert('필수 정보가 입력되지 않았습니다.');
             return;
         }
-    }
+    
+        let encodedParams = btoa(encodeURIComponent(JSON.stringify(params)));
+        kycIframe.contentWindow.postMessage(encodedParams, KYC_TARGET_ORIGIN);
+        hideLoadingUI();
+        startKYC();
+        kycIframe.onload = null;
+    };
+    
+    kycIframe.src = KYC_URL;
+    showLoadingUI();
+}
 
-    encodedParams = btoa(encodeURIComponent(JSON.stringify(params)));
-    kycIframe.contentWindow.postMessage(encodedParams, KYC_TARGET_ORIGIN);
-    startKYC();
+function showLoadingUI()
+{
+    document.getElementById('loading_ui').style.display = 'flex';
+}
+
+function hideLoadingUI()
+{
+    document.getElementById('loading_ui').style.display = 'none';
 }
 
 function startKYC() {
@@ -114,25 +156,38 @@ function updateKYCResult(data, json) {
     const kycResult = document.getElementById("kyc_result");
     kycResult.innerHTML = "";
 
-    const div = document.createElement("div");
-    div.className = 'syntaxHighlight bright';
+    const title1 = document.createElement("h3");
+    title1.innerHTML = "<h3 class=\"customer--headline\">최종 결과 : " + json.result + " </h3>";
 
-    let content = "<center><b>최종 결과 : " + json.result + " </b></center>"
+    const result1 = document.createElement("div");
+    result1.className = 'syntaxHighlight bright';
+    result1.style.textAlign = 'center';
 
     const detail = json.review_result;
+    let content = "";
 
     if (detail) {
         if (detail.module.id_card_ocr && detail.module.id_card_verification) {
-            content += "<br/><b>=== 신분증 진위확인 === </b>";
+
+            content = "<h4 class='subTitle'>신분증 진위확인</h4>";
             content += "<br/> - 결과 : " + (detail.id_card ? (detail.id_card.verified ? "<span style='color:blue'>성공</span>" : "<span style='color:red'>실패</span>") : "N/A");
-            if (detail.id_card) {
-                content += "<br/> - 신분증 사진<br/>&nbsp;&nbsp;&nbsp;<img style='max-height:200px;' src='" + imageConverter(detail.id_card.id_card_image) + "' /></b>";
+
+            if (detail.id_card.is_uploaded !== undefined) {
+                content += "<br/> - 제출방식 : " + (detail.id_card.is_uploaded === false ? "<span style='color:blue'>카메라 촬영</span>" : "<span style='color:red'>파일 업로드</span>");
+            }
+
+            if (detail.id_card.id_card_image) {
+                content += "<br/> - 신분증 마스킹 사진<br/>&nbsp;&nbsp;&nbsp;<img style='max-height:200px;' src='" + imageConverter(detail.id_card.id_card_image) + "' /></b>";
+            }
+
+            if (detail.id_card.id_card_origin) {
+                content += "<br/> - 신분증 원본 사진<br/>&nbsp;&nbsp;&nbsp;<img style='max-height:200px;' src='" + imageConverter(detail.id_card.id_card_origin) + "' /></b>";
             }
         }
 
         if (detail.module.face_authentication) {
-            content += "<br/>"
-            content += "<br/><b>=== 신분증 얼굴 사진 VS 셀피 촬영 사진 유사도 === </b>";
+            content += "<br/>";
+            content += "<h4 class='subTitle'>신분증 얼굴 사진 VS 셀피 촬영 사진 유사도</h4>";
             content += "<br/> - 결과 : " + (detail.face_check ? (detail.face_check.is_same_person ? "<span style='color:blue'>높음</span>" : "<span style='color:red'>낮음</span>") : "N/A");
             if (detail.face_check) {
                 content += "<br/> - 신분증 얼굴 사진<br/>&nbsp;&nbsp;&nbsp;<img style='max-height:100px;' src='" + imageConverter(detail.id_card.id_crop_image) + "' />";
@@ -141,30 +196,36 @@ function updateKYCResult(data, json) {
         }
 
         if (detail.module.liveness) {
-            content += "<br/>"
-            content += "<br/><b>=== 얼굴 사진 진위확인 === </b>";
+            content += "<br/>";
+            content += "<h4 class='subTitle'>얼굴 사진 진위확인</h4>";
             content += "<br/> - 결과 : " + (detail.face_check ? (detail.face_check.is_live ? "<span style='color:blue'>성공</span>" : "<span style='color:red'>실패</span>") : "N/A");
         }
 
         if (detail.module.account_verification) {
-            content += "<br/>"
-            content += "<br/><b>=== 1원 계좌 인증 === </b>";
+            content += "<br/>";
+            content += "<h4 class='subTitle'>1원 계좌 인증</h4>";
             content += "<br/> - 결과 : " + (detail.account ? (detail.account.verified ? "<span style='color:blue'>성공</span>" : "<span style='color:red'>실패</span>") : "N/A");
             if (detail.account) {
                 content += "<br/> - 예금주명 : " + (detail.account.user_name ? detail.account.user_name : "N/A");
                 content += "<br/> - 금융사명 : " + (detail.account.finance_company ? detail.account.finance_company : "N/A");
+                content += "<br/> - 금융사코드 : " + (detail.account.finance_code ? detail.account.finance_code : "N/A");
                 content += "<br/> - 계좌번호 : " + (detail.account.account_number ? detail.account.account_number : "N/A");
             }
         }
     }
 
-    div.innerHTML = content;
-    kycResult.appendChild(div);
+    result1.innerHTML = content;
+    kycResult.appendChild(title1);
+    kycResult.appendChild(result1);
 
-    const pre = document.createElement("pre");
-    pre.className = "syntaxHighlight bright";
-    pre.innerHTML = data;
-    kycResult.appendChild(pre);
+    const title2 = document.createElement("h3");
+    title2.innerHTML = "<h3 class=\"customer--headline\">PostMessage 상세</h3>";
+
+    const result2 = document.createElement("pre");
+    result2.className = "syntaxHighlight bright";
+    result2.innerHTML = data;
+    kycResult.appendChild(title2);
+    kycResult.appendChild(result2);
 }
 
 function updateKYCStatus(msg) {
