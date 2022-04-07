@@ -25,6 +25,9 @@ jobs:
       - name: git checkout main
         run: git checkout main
       
+      - name: git stash
+        run: git stash
+        
       - name: git merge upstream/main
         run: git merge upstream/main
       
@@ -33,3 +36,6 @@ jobs:
         
       - name: git push
         run: git push
+      
+      - name: git stash pop
+        run: git stash pop
