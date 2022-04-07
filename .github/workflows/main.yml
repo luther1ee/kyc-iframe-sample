@@ -1,0 +1,41 @@
+name: 'Upstream Sync'
+
+on:
+  schedule:
+    - cron: '*/1 * * * *'
+    
+jobs:
+  sync_latest_from_upstream:
+    runs-on: ubuntu-latest
+    name: Sync latest merge from upstream repo
+    
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v2
+        with:
+          ref: main
+          persist-credentials: false
+      
+      - name: add upstream
+        run: git remote add upstream 'github.com/alcherainc/kyc-iframe-sample.git'
+      
+      - name: git fetch upstream
+        run: git fetch upstream
+      
+      - name: git checkout main
+        run: git checkout main
+      
+      - name: git stash
+        run: git stash
+        
+      - name: git merge upstream/main
+        run: git merge upstream/main
+      
+      - name: git commit -am 'Merged from upstream'
+        run: git commit -am 'Merged from upstream'
+        
+      - name: git push
+        run: git push
+      
+      - name: git stash pop
+        run: git stash pop
